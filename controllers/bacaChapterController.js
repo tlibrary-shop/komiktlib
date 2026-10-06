@@ -91,9 +91,41 @@ function getChapterUrlCandidates(slug, chapter) {
 }
 
 async function fetchChapterHtml(slug, chapter) {
-  const candidates = getChapterUrlCandidates(slug, chapter);
+  const targetChapter = String(chapter || "").trim();
   let lastError;
 
+  // Jangan menebak URL chapter sebagai mekanisme utama.
+  // Ambil halaman detail komik lalu gunakan URL chapter asli yang diberikan Komiku.
+  try {
+    const mangaUrl = `${BASE_URL}/manga/${encodeURIComponent(slug)}/`;
+    const mangaHtml = await fetchHtml(mangaUrl);
+    const $ = cheerio.load(mangaHtml);
+
+    const chapterLinks = $('a[href*="chapter"]')
+      .toArray()
+      .map((el) => getAbsoluteUrl($(el).attr("href")))
+      .filter(Boolean);
+
+    const exactChapterLink = chapterLinks.find((link) => {
+      const number = extractChapterNumber(link);
+      return number === targetChapter;
+    });
+
+    if (exactChapterLink) {
+      const data = await fetchHtml(exactChapterLink);
+      return {
+        data,
+        chapterUrl: exactChapterLink,
+        chapterValue: extractChapterNumber(exactChapterLink) || targetChapter,
+      };
+    }
+  } catch (error) {
+    lastError = error;
+    if (error.response && error.response.status !== 404) throw error;
+  }
+
+  // Fallback untuk kompatibilitas dengan URL chapter lama/pola standar.
+  const candidates = getChapterUrlCandidates(slug, chapter);
   for (const candidate of candidates) {
     try {
       const data = await fetchHtml(candidate.url);
@@ -104,7 +136,7 @@ async function fetchChapterHtml(slug, chapter) {
     }
   }
 
-  throw lastError;
+  throw lastError || new Error("Chapter tidak ditemukan");
 }
 
 const getBacaChapter = async (req, res) => {
