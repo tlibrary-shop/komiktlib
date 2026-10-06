@@ -192,48 +192,99 @@ const getBacaChapter = async (req, res) => {
     const images = [];
     const isKomikuPlus = /komiku\.plus/i.test(chapterUrl);
 
-    $("#Baca_Komik img, img.ww, img[id], article img, main img").each((_, el) => {
-      const img = $(el);
-      const src = getImageUrl($, img);
-      const id = normalizeText(img.attr("id"));
-      const alt = normalizeText(img.attr("alt"));
-      const isLikelyPageImage =
-        /\.(?:jpe?g|png|webp|avif)(?:\?|$)/i.test(src || "") ||
-        /(?:uploads?\d*|chapter|comic|manga)/i.test(src || "") ||
-        /^\d+$/.test(id);
+    // Komiku Plus memakai struktur reader yang berbeda. Jangan batasi gambar
+    // hanya ke domain komiku.* karena CDN gambarnya bisa berada di host lain.
+    const pushImage = (rawUrl, meta = {}) => {
+      const src = getAbsoluteUrl(rawUrl, chapterUrl);
+      if (!src || /^data:/i.test(src)) return;
 
-      const isAllowedKomikuImage =
-        src &&
-        /(?:[\w-]+\.)?komiku\.(?:org|to|plus)\//i.test(src);
+      const looksLikeImage =
+        /\.(?:jpe?g|png|webp|avif|gif)(?:[?#].*)?$/i.test(src) ||
+        /(?:chapter|comic|manga|uploads?|storage|image|images|pages?)/i.test(src);
 
-      const isPlusPageImage =
-        isKomikuPlus &&
-        src &&
-        isLikelyPageImage &&
-        !/^data:/i.test(src);
+      const looksLikeAsset =
+        /(?:logo|icon|avatar|favicon|sprite|banner|ads?)/i.test(
+          String(meta.alt || "") + " " + String(meta.className || "") + " " + src
+        );
 
-      if (
-        src &&
-        (
-          isPlusPageImage ||
-          (
-            isAllowedKomikuImage &&
-            (!isKomikuPlus
-              ? /(?:uploads?\d*|chapter|comic|manga)/i.test(src || "") || /^\d+$/.test(id)
-              : isLikelyPageImage)
-          )
-        )
-      ) {
-        images.push({
-          src,
-          alt,
-          id,
-          fallbackSrc: src
-            .replace("cdn.komiku.org", "img.komiku.org")
-            .replace("cdn.komiku.plus", "img.komiku.plus"),
+      if (!looksLikeImage || looksLikeAsset) return;
+
+      images.push({
+        src,
+        alt: normalizeText(meta.alt || ""),
+        id: normalizeText(meta.id || ""),
+        fallbackSrc: src
+          .replace("cdn.komiku.org", "img.komiku.org")
+          .replace("cdn.komiku.plus", "img.komiku.plus"),
+      });
+    };
+
+    const imageSelectors = isKomikuPlus
+      ? "img, source, a[href]"
+      : "#Baca_Komik img, img.ww, img[id], article img, main img";
+
+    $(imageSelectors).each((_, el) => {
+      const node = $(el);
+      const tag = String(el.name || "").toLowerCase();
+
+      if (tag === "a") {
+        pushImage(node.attr("href"), {
+          alt: node.attr("title") || node.text(),
+          className: node.attr("class"),
         });
+        return;
+      }
+
+      const candidates = [
+        node.attr("data-src"),
+        node.attr("data-lazy-src"),
+        node.attr("data-original"),
+        node.attr("data-image"),
+        node.attr("data-img"),
+        node.attr("data-url"),
+        node.attr("src"),
+        node.attr("data-srcset"),
+        node.attr("srcset"),
+      ].filter(Boolean);
+
+      for (const candidate of candidates) {
+        const values = String(candidate)
+          .split(",")
+          .map((part) => part.trim().split(/\s+/)[0])
+          .filter(Boolean);
+
+        values.forEach((value) =>
+          pushImage(value, {
+            alt: node.attr("alt"),
+            id: node.attr("id"),
+            className: node.attr("class"),
+          })
+        );
       }
     });
+
+    // Beberapa reader Plus menyimpan URL halaman di inline CSS/JSON.
+    if (isKomikuPlus && !images.length) {
+      $("script").each((_, el) => {
+        const scriptText = $(el).html() || "";
+        const matches = scriptText.match(
+          /https?:\\/\\/[^"'\\s<>]+?\\.(?:jpe?g|png|webp|avif)(?:\\?[^"'\\s<>]*)?/gi
+        ) || [];
+
+        matches.forEach((url) =>
+          pushImage(url.replace(/\\\\\//g, "/"), {})
+        );
+      });
+
+      $("[style]").each((_, el) => {
+        const style = $(el).attr("style") || "";
+        const matches = style.match(/url\\((['"]?)(.*?)\\1\\)/gi) || [];
+        matches.forEach((match) => {
+          const url = match.replace(/^url\\(/i, "").replace(/\\)$/i, "").replace(/^['"]|['"]$/g, "");
+          pushImage(url, {});
+        });
+      });
+    }
 
     const uniqueImages = images.filter(
       (image, index, allImages) =>
