@@ -208,9 +208,23 @@ const getDetail = async (req, res) => {
       } catch {}
     }
 
-    const komikDetail = await scrapeKomikDetail(komikUrl);
+    let komikDetail;
+    try {
+      komikDetail = await scrapeKomikDetail(komikUrl);
+    } catch (error) {
+      if (!error.response || error.response.status !== 404) throw error;
+    }
 
-    if (!komikDetail.title || !komikDetail.chapters.length) {
+    if (!komikDetail || !komikDetail.title || !komikDetail.chapters.length) {
+      const alternateUrl = `https://komiku.plus/komik/${encodeURIComponent(slug)}`;
+      try {
+        komikDetail = await scrapeKomikDetail(alternateUrl);
+      } catch (error) {
+        if (!error.response || error.response.status !== 404) throw error;
+      }
+    }
+
+    if (!komikDetail || !komikDetail.title || !komikDetail.chapters.length) {
       return res.status(502).json({
         error: "Gagal parsing detail komik dari Komiku.",
         detail:
