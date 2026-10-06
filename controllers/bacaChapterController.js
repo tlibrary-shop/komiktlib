@@ -103,14 +103,22 @@ async function fetchChapterHtml(slug, chapter, sourceUrl = "") {
 
     const chapterLinks = $("a[href]")
       .toArray()
-      .map((el) => getAbsoluteUrl($(el).attr("href")))
-      .filter(Boolean)
-      .filter((link) => extractChapterNumber(link));
+      .map((el) => {
+        const link = getAbsoluteUrl($(el).attr("href"));
+        const text = normalizeText($(el).text() || $(el).attr("title") || $(el).attr("aria-label"));
+        const urlChapter = extractChapterNumber(link);
+        const textMatch = text.match(/(?:chapter|ch\.?|episode|eps\.?)?\s*([0-9]+(?:[.-][0-9]+)*)\s*$/i);
+        const textChapter = textMatch ? textMatch[1] : "";
+        return {
+          link,
+          chapter: urlChapter || textChapter,
+        };
+      })
+      .filter((item) => item.link && item.chapter);
 
-    const exactChapterLink = chapterLinks.find((link) => {
-      const number = extractChapterNumber(link);
-      return number === targetChapter;
-    });
+    const exactChapterLink = chapterLinks.find((item) => {
+      return item.chapter === targetChapter;
+    })?.link;
 
     if (exactChapterLink) {
       const data = await fetchHtml(exactChapterLink);
