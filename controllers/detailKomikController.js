@@ -222,9 +222,12 @@ const getDetail = async (req, res) => {
       try {
         const searchHtml = await fetchHtml(searchUrl);
         const search$ = cheerio.load(searchHtml);
-        const normalizedSlug = normalizeText(slug).toLowerCase().replace(/[-_]+/g, " ").trim();
+        const normalizedSlug = normalizeText(slug)
+          .toLowerCase()
+          .replace(/[-_]+/g, " ")
+          .trim();
 
-        const candidates = search$('a[href*="/manga/"], a[href*="/komik/"]')
+        const candidates = search$("a[href]")
           .toArray()
           .map((el) => {
             const href = getAbsoluteUrl(search$(el).attr("href"));
@@ -234,22 +237,49 @@ const getDetail = async (req, res) => {
                 search$(el).text()
             ).toLowerCase();
             const hrefSlug = extractMangaSlug(href).toLowerCase();
+            const hrefPath = (() => {
+              try {
+                return new URL(href).pathname.toLowerCase();
+              } catch {
+                return "";
+              }
+            })();
 
             let score = 0;
             if (hrefSlug === slug.toLowerCase()) score += 100;
             if (hrefSlug === normalizedSlug.replace(/\s+/g, "-")) score += 80;
             if (text === normalizedSlug) score += 60;
             if (text.includes(normalizedSlug)) score += 20;
+            if (hrefPath === `/${slug.toLowerCase()}/`) score += 90;
 
             return { href, score };
           })
-          .filter((item) => item.href && item.score > 0)
+          .filter((item) => {
+            if (!item.href || item.score <= 0) return false;
+            try {
+              const parsed = new URL(item.href);
+              return (
+                parsed.hostname === new URL(BASE_URL).hostname &&
+                !/chapter|search|genre|page=|post_type=manga/i.test(parsed.pathname + parsed.search)
+              );
+            } catch {
+              return false;
+            }
+          })
           .sort((a, b) => b.score - a.score);
 
-        const resolvedUrl = candidates[0]?.href;
-
-        if (resolvedUrl) {
-          komikDetail = await scrapeKomikDetail(resolvedUrl);
+        for (const candidate of candidates) {
+          try {
+            const detail = await scrapeKomikDetail(candidate.href);
+            if (detail.title && detail.chapters.length) {
+              komikDetail = detail;
+              break;
+            }
+          } catch (error) {
+            if (!error.response || error.response.status !== 404) {
+              console.warn("Gagal mencoba kandidat detail Komiku:", candidate.href, error.message);
+            }
+          }
         }
       } catch (error) {
         if (!error.response || error.response.status !== 404) throw error;
