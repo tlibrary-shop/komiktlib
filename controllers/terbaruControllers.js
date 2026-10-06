@@ -10,7 +10,25 @@ const {
   extractMangaSlug,
   extractChapterNumber,
   logEmptyParse,
+  findHtmxUrl,
 } = require("./scraperUtils");
+
+async function getTerbaruFragmentHtml(pageUrl) {
+  const shellHtml = await fetchHtml(pageUrl);
+  const $ = cheerio.load(shellHtml);
+  const htmxUrl = findHtmxUrl($);
+
+  if (!htmxUrl) {
+    return shellHtml;
+  }
+
+  return fetchHtml(htmxUrl, {
+    headers: {
+      "HX-Request": "true",
+      Referer: pageUrl,
+    },
+  });
+}
 
 function parseTypeFromText(...values) {
   const joinedValue = values.map(normalizeText).filter(Boolean).join(" ");
@@ -235,7 +253,7 @@ const getTerbaru = async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const pageUrl = `${BASE_URL}/pustaka/page/${page}/?orderby=modified&sorttime=all`;
-    const data = await fetchHtml(pageUrl);
+    // Komiku sekarang memuat daftar pustaka melalui request HTMX.\n    // Fetch shell saja menghasilkan HTML tanpa kartu komik sehingga parser kosong.\n    const data = await getTerbaruFragmentHtml(pageUrl);
 
     const komikTerbaru = parseTerbaruHtml(data);
 
