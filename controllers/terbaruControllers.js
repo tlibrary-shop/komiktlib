@@ -234,7 +234,7 @@ function parseTerbaruHtml(html) {
 const getTerbaru = async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const pageUrl = page === 1 ? BASE_URL : `${BASE_URL}/?page=${page}`;
+    const pageUrl = `${BASE_URL}/pustaka/page/${page}/?orderby=modified&sorttime=all`;
     const data = await fetchHtml(pageUrl);
 
     const komikTerbaru = parseTerbaruHtml(data);
@@ -250,7 +250,7 @@ const getTerbaru = async (req, res) => {
       });
     }
 
-    res.json({ page, items: komikTerbaru, hasNextPage: komikTerbaru.length > 0 });
+    res.json({ page, items: komikTerbaru, hasNextPage: komikTerbaru.length >= 10 });
   } catch (err) {
     console.error("Kesalahan pada GET /terbaru:", err);
     res.status(500).json({
