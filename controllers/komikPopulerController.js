@@ -79,9 +79,11 @@ function scrapeKomikSection($, sectionSelector, fallbackTitle, typeFilter = "") 
       : $("section")
           .filter((_, el) => /Komik Populer|Populer Update|Peringkat|Baru Ditambahkan/i.test($(el).text()))
           .first();
-    cardElements = sectionElement.find('article:has(a[href*="/manga/"])').length
-      ? sectionElement.find('article:has(a[href*="/manga/"])')
-      : sectionElement.find('li:has(a[href*="/manga/"]), div:has(> a[href*="/manga/"])');
+    cardElements = sectionElement.find('.bge:has(a[href*="/manga/"])').length
+      ? sectionElement.find('.bge:has(a[href*="/manga/"])')
+      : sectionElement.find('article:has(a[href*="/manga/"])').length
+        ? sectionElement.find('article:has(a[href*="/manga/"])')
+        : sectionElement.find('li:has(a[href*="/manga/"]), div:has(> a[href*="/manga/"])');
   }
 
   const seen = new Set();
