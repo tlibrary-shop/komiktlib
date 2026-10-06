@@ -272,12 +272,19 @@ function parseTerbaruHtml(html) {
 const getTerbaru = async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const pageUrl = `${BASE_URL}/pustaka/page/${page}/?orderby=modified&sorttime=all`;
+    const typeFilter = normalizeText(req.query.tipe || "").toLowerCase();
+    const typeQuery = /^(manga|manhwa|manhua)$/.test(typeFilter) ? `&tipe=${encodeURIComponent(typeFilter)}` : "";
+    const pageUrl = `${BASE_URL}/pustaka/page/${page}/?orderby=modified&sorttime=all${typeQuery}`;
     // Komiku sekarang memuat daftar pustaka melalui request HTMX.
     // Fetch shell saja menghasilkan HTML tanpa kartu komik sehingga parser kosong.
     const data = await getTerbaruFragmentHtml(pageUrl);
 
-    const komikTerbaru = parseTerbaruHtml(data);
+    let komikTerbaru = parseTerbaruHtml(data);
+
+    if (/^(manga|manhwa|manhua)$/.test(typeFilter)) {
+      const wantedType = typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1);
+      komikTerbaru = komikTerbaru.filter((item) => item.type === wantedType);
+    }
 
     if (!komikTerbaru.length) {
       logEmptyParse(`GET /terbaru?page=${page}`, data, { target: pageUrl });
@@ -290,7 +297,7 @@ const getTerbaru = async (req, res) => {
       });
     }
 
-    res.json({ page, items: komikTerbaru, hasNextPage: komikTerbaru.length >= 10 });
+    res.json({ page, type: typeFilter || "all", items: komikTerbaru, hasNextPage: komikTerbaru.length >= 10 });
   } catch (err) {
     console.error("Kesalahan pada GET /terbaru:", err);
     res.status(500).json({
