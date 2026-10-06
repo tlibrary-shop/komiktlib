@@ -17,6 +17,7 @@ process.on("unhandledRejection", (reason, promise) => {
 });
 
 const app = express();
+// Vercel/Express menerima request melalui reverse proxy. Trust satu proxy\n// agar req.ip konsisten dan express-rate-limit tidak mengabaikan Forwarded.\napp.set("trust proxy", 1);
 const port = process.env.PORT || 3001;
 const rateLimiter = require("./middleware/rateLimiter");
 
