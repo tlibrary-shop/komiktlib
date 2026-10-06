@@ -22,16 +22,20 @@ function getChapterApiLink(chapterLink) {
 
 function parseChapterLink($, linkElement) {
   const originalLink = getAbsoluteUrl(linkElement.attr("href"));
-  const title =
-    normalizeText(linkElement.find("span").last().text()) ||
+  const chapterNumber = extractChapterNumber(originalLink);
+  const rawText =
     normalizeText(linkElement.text()) ||
     normalizeText(linkElement.attr("title"));
+
+  const title = chapterNumber
+    ? `Chapter ${chapterNumber}`
+    : normalizeText(linkElement.find("span").first().text()) || rawText;
 
   return {
     title,
     originalLink,
     apiLink: getChapterApiLink(originalLink),
-    chapterNumber: extractChapterNumber(originalLink),
+    chapterNumber,
   };
 }
 
@@ -59,7 +63,7 @@ async function scrapeKomikDetail(url) {
     normalizeText($(".entry-title, .post-title, article h1, main h1").first().text());
   const alternativeTitle = normalizeText($("p.j2").first().text());
   const description = normalizeText($("p.desc").first().text());
-  const sinopsis =
+  let sinopsis =
     normalizeText($("section#Sinopsis p").first().text()) ||
     normalizeText(
       $("section")
@@ -67,7 +71,25 @@ async function scrapeKomikDetail(url) {
         .find("p")
         .first()
         .text()
-    );
+    ) ||
+    normalizeText($("meta[name='description']").attr("content")) ||
+    normalizeText($("meta[property='og:description']").attr("content"));
+
+  if (!sinopsis) {
+    $("script[type='application/ld+json']").each((_, el) => {
+      if (sinopsis) return;
+      try {
+        const raw = JSON.parse($(el).html() || "");
+        const items = Array.isArray(raw) ? raw : [raw];
+        for (const item of items) {
+          if (item && typeof item.description === "string") {
+            sinopsis = normalizeText(item.description);
+            break;
+          }
+        }
+      } catch {}
+    });
+  }
 
   const thumbnail =
     getImageUrl($, $("section#Informasi img").first()) ||
