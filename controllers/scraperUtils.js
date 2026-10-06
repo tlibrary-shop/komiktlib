@@ -103,9 +103,9 @@ function extractMangaSlug(url) {
 
   try {
     const { pathname } = new URL(url, BASE_URL);
-    return pathname.match(/\/manga\/([^/]+)/i)?.[1] || "";
+    return pathname.match(/\/(?:manga|komik)\/([^/]+)/i)?.[1] || "";
   } catch (error) {
-    return String(url).match(/\/manga\/([^/]+)/i)?.[1] || "";
+    return String(url).match(/\/(?:manga|komik)\/([^/]+)/i)?.[1] || "";
   }
 }
 
