@@ -113,10 +113,31 @@ function getCandidateCards($, section) {
     if (cards.length) return cards;
   }
 
-  return $('a[href*="/manga/"]')
-    .toArray()
-    .map((link) => $(link).closest("article, li, div").get(0))
-    .filter(Boolean);
+  const directCards = [];
+  const seenNodes = new Set();
+
+  $('a[href*="/manga/"]').each((_, link) => {
+    let node = link;
+    let best = null;
+
+    for (let depth = 0; depth < 7 && node; depth += 1) {
+      const candidate = $(node);
+      const hasImage = candidate.find("img").length > 0;
+      const hasChapter = candidate.find('a[href*="chapter"]').length > 0;
+      if (hasImage && hasChapter) {
+        best = node;
+        break;
+      }
+      node = node.parent;
+    }
+
+    if (best && !seenNodes.has(best)) {
+      seenNodes.add(best);
+      directCards.push(best);
+    }
+  });
+
+  return directCards;
 }
 
 function parseCard($, cardElement) {
