@@ -188,6 +188,7 @@ async function scrapeKomikDetail(url) {
     info: infoTable,
     genres,
     slug: komikSlug,
+    sourceUrl: url,
     // firstChapter,
     // latestChapter,
     chapters,
