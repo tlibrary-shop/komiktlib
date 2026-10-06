@@ -101,10 +101,11 @@ async function fetchChapterHtml(slug, chapter, sourceUrl = "") {
     const mangaHtml = await fetchHtml(mangaUrl);
     const $ = cheerio.load(mangaHtml);
 
-    const chapterLinks = $('a[href*="chapter"]')
+    const chapterLinks = $("a[href]")
       .toArray()
       .map((el) => getAbsoluteUrl($(el).attr("href")))
-      .filter(Boolean);
+      .filter(Boolean)
+      .filter((link) => extractChapterNumber(link));
 
     const exactChapterLink = chapterLinks.find((link) => {
       const number = extractChapterNumber(link);
@@ -176,7 +177,7 @@ const getBacaChapter = async (req, res) => {
 
       if (
         src &&
-        /(?:[\w-]+\.)?komiku\.(?:org|to)\/(?:wp-content\/)?uploads?\d*\//i.test(src) &&
+        /(?:[\w-]+\.)?komiku\.(?:org|to|plus)\/(?:wp-content\/)?uploads?\d*\//i.test(src) &&
         (!id || /^\d+$/.test(id))
       ) {
         images.push({
