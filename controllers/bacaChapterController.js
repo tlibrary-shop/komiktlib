@@ -172,7 +172,7 @@ const getBacaChapter = async (req, res) => {
       normalizeText($("h1").first().text()) ||
       normalizeText($("meta[itemprop='name']").attr("content"));
     const mangaTitleElement = $(
-      '#Judul a[href*="/manga/"], a[href*="/manga/"]'
+      '#Judul a[href*="/manga/"], #Judul a[href*="/komik/"], a[href*="/manga/"], a[href*="/komik/"]'
     ).first();
     const mangaTitle =
       normalizeText(mangaTitleElement.find("b").first().text()) ||
@@ -190,21 +190,34 @@ const getBacaChapter = async (req, res) => {
     });
 
     const images = [];
-    $("#Baca_Komik img, img.ww, img[id]").each((_, el) => {
+    const isKomikuPlus = /komiku\.plus/i.test(chapterUrl);
+
+    $("#Baca_Komik img, img.ww, img[id], article img, main img").each((_, el) => {
       const img = $(el);
       const src = getImageUrl($, img);
       const id = normalizeText(img.attr("id"));
+      const alt = normalizeText(img.attr("alt"));
+      const isLikelyPageImage =
+        /\.(?:jpe?g|png|webp|avif)(?:\?|$)/i.test(src || "") ||
+        /(?:uploads?\d*|chapter|comic|manga)/i.test(src || "") ||
+        /^\d+$/.test(id);
+
+      const isAllowedKomikuImage =
+        src &&
+        /(?:[\w-]+\.)?komiku\.(?:org|to|plus)\//i.test(src);
 
       if (
         src &&
-        /(?:[\w-]+\.)?komiku\.(?:org|to|plus)\/(?:wp-content\/)?uploads?\d*\//i.test(src) &&
-        (!id || /^\d+$/.test(id))
+        isAllowedKomikuImage &&
+        (isKomikuPlus ? isLikelyPageImage : /(?:uploads?\d*|chapter|comic|manga)/i.test(src || "") || /^\d+$/.test(id))
       ) {
         images.push({
           src,
-          alt: normalizeText(img.attr("alt")),
+          alt,
           id,
-          fallbackSrc: src.replace("cdn.komiku.org", "img.komiku.org"),
+          fallbackSrc: src
+            .replace("cdn.komiku.org", "img.komiku.org")
+            .replace("cdn.komiku.plus", "img.komiku.plus"),
         });
       }
     });
@@ -216,7 +229,7 @@ const getBacaChapter = async (req, res) => {
 
     const navigationLinks = $("#Judul")
       .parent()
-      .find('a[href*="chapter"]')
+      .find('a[href*="chapter"], a[href*="/ch/"]')
       .toArray()
       .map((el) => getAbsoluteUrl($(el).attr("href")))
       .filter(Boolean);
@@ -252,6 +265,7 @@ const getBacaChapter = async (req, res) => {
     const chapterValueInfo =
       extractChapterNumber(chapterUrl) ||
       $(".chapterInfo").attr("valuechapter") ||
+      normalizeText($("#Judul h1").first().text()).match(/(?:chapter|ch\.?|episode|eps\.?)\s*([0-9]+(?:[.-][0-9]+)*)/i)?.[1] ||
       chapterValue;
     const totalImages =
       $(".chapterInfo").attr("valuegambar") || uniqueImages.length.toString();
