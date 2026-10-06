@@ -253,7 +253,9 @@ const getTerbaru = async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const pageUrl = `${BASE_URL}/pustaka/page/${page}/?orderby=modified&sorttime=all`;
-    // Komiku sekarang memuat daftar pustaka melalui request HTMX.\n    // Fetch shell saja menghasilkan HTML tanpa kartu komik sehingga parser kosong.\n    const data = await getTerbaruFragmentHtml(pageUrl);
+    // Komiku sekarang memuat daftar pustaka melalui request HTMX.
+    // Fetch shell saja menghasilkan HTML tanpa kartu komik sehingga parser kosong.
+    const data = await getTerbaruFragmentHtml(pageUrl);
 
     const komikTerbaru = parseTerbaruHtml(data);
 
