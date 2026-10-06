@@ -84,17 +84,7 @@ const genreRekomendasi = require("./routes/genre-rekomendasi");
 // Root route
 app.get("/", (req, res) => {
   res.setHeader("Cache-Control", "no-cache");
-  res.json({
-    name: "Komiku REST API",
-    status: "online",
-    documentation: "/api-docs",
-    endpoints: [
-      "/rekomendasi", "/terbaru", "/pustaka", "/komik-populer",
-      "/detail-komik/:slug", "/baca-chapter/:slug/:chapter",
-      "/search?q=:keyword", "/berwarna", "/genre-all",
-      "/genre-rekomendasi", "/genre/:slug"
-    ]
-  });
+  res.sendFile(path.join(__dirname, "frontend", "index.html"));
 });
 
 app.get("/image-proxy", async (req, res) => {
