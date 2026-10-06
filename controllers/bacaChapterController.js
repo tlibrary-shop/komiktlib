@@ -90,14 +90,14 @@ function getChapterUrlCandidates(slug, chapter) {
   return candidates;
 }
 
-async function fetchChapterHtml(slug, chapter) {
+async function fetchChapterHtml(slug, chapter, sourceUrl = "") {
   const targetChapter = String(chapter || "").trim();
   let lastError;
 
   // Jangan menebak URL chapter sebagai mekanisme utama.
   // Ambil halaman detail komik lalu gunakan URL chapter asli yang diberikan Komiku.
   try {
-    const mangaUrl = `${BASE_URL}/manga/${encodeURIComponent(slug)}/`;
+    const mangaUrl = sourceUrl || `${BASE_URL}/manga/${encodeURIComponent(slug)}/`;
     const mangaHtml = await fetchHtml(mangaUrl);
     const $ = cheerio.load(mangaHtml);
 
@@ -142,7 +142,8 @@ async function fetchChapterHtml(slug, chapter) {
 const getBacaChapter = async (req, res) => {
   try {
     const { slug, chapter } = req.params;
-    const { data, chapterUrl, chapterValue } = await fetchChapterHtml(slug, chapter);
+    const sourceUrl = typeof req.query.url === "string" ? req.query.url.trim() : "";
+    const { data, chapterUrl, chapterValue } = await fetchChapterHtml(slug, chapter, sourceUrl);
     const $ = cheerio.load(data);
 
     const title =
