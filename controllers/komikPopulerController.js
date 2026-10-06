@@ -10,6 +10,7 @@ const {
   extractChapterNumber,
   getApiChapterLink,
   logEmptyParse,
+  findHtmxUrl,
 } = require("./scraperUtils");
 
 function parseType(...values) {
@@ -113,7 +114,21 @@ async function loadPopularPage(page = 1, typeFilter = "") {
   const validPage = Math.max(1, parseInt(page, 10) || 1);
   const typeQuery = typeFilter ? `&tipe=${encodeURIComponent(typeFilter.toLowerCase())}` : "";
   const pageUrl = `${BASE_URL}/pustaka/page/${validPage}/?orderby=meta_value_num&sorttime=all${typeQuery}`;
-  const data = await fetchHtml(pageUrl);
+
+  // Komiku memuat isi pustaka lewat HTMX. Ambil fragment yang berisi kartu,
+  // bukan HTML shell-nya.
+  const shellHtml = await fetchHtml(pageUrl);
+  const shell$ = cheerio.load(shellHtml);
+  const htmxUrl = findHtmxUrl(shell$);
+  const data = htmxUrl
+    ? await fetchHtml(htmxUrl, {
+        headers: {
+          "HX-Request": "true",
+          Referer: pageUrl,
+        },
+      })
+    : shellHtml;
+
   return { data, $: cheerio.load(data), page: validPage };
 }
 
