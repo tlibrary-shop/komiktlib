@@ -57,31 +57,17 @@ async function scrapeKomikDetail(url) {
     normalizeText($("h1").first().text()) ||
     normalizeText($("[itemprop='name']").first().text()) ||
     normalizeText($(".entry-title, .post-title, article h1, main h1").first().text());
-  const alternativeTitle =
-    normalizeText($("p.j2").first().text()) ||
-    normalizeText($("[itemprop='alternateName']").first().text()) ||
-    normalizeText($(".alternative-title, .alt-title, .sub-title").first().text());
-
-  const description =
-    normalizeText($("p.desc").first().text()) ||
-    normalizeText($("#Sinopsis").find("p, div, .desc").first().text()) ||
-    normalizeText($(".sinopsis, .synopsis, .summary, .description").first().text()) ||
-    normalizeText($("[class*='sinopsis' i], [id*='sinopsis' i], [class*='synopsis' i], [id*='synopsis' i]").first().text()) ||
-    normalizeText($("meta[name='description']").attr("content"));
+  const alternativeTitle = normalizeText($("p.j2").first().text());
   const description = normalizeText($("p.desc").first().text());
   const sinopsis =
     normalizeText($("section#Sinopsis p").first().text()) ||
-    normalizeText($("#Sinopsis").find("p, div, .desc").first().text()) ||
-    normalizeText($(".sinopsis, .synopsis, .summary, .description").first().text()) ||
-    normalizeText($("[class*='sinopsis' i], [id*='sinopsis' i], [class*='synopsis' i], [id*='synopsis' i]").first().text()) ||
     normalizeText(
-      $("section, article, main, div")
-        .filter((_, el) => /^(sinopsis|synopsis)$/i.test(normalizeText($(el).find("h2,h3,h4,strong,b").first().text())))
-        .find("p, div, span")
-        .filter((_, el) => normalizeText($(el).text()))
+      $("section")
+        .filter((_, el) => /sinopsis/i.test(normalizeText($(el).text())))
+        .find("p")
         .first()
         .text()
-    ) || description;
+    );
 
   const thumbnail =
     getImageUrl($, $("section#Informasi img").first()) ||
