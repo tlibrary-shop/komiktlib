@@ -3,6 +3,7 @@ const {
   BASE_URL,
   PLACEHOLDER_IMAGE_RE,
   getAbsoluteUrl,
+  getImageUrl,
   fetchHtml,
   normalizeText,
   cleanTitle,
@@ -141,12 +142,7 @@ function parseCard($, cardElement) {
     cleanTitle(imageElement.attr("alt")) ||
     "Judul Tidak Tersedia";
 
-  const thumbnailSource =
-    imageElement.attr("data-src") ||
-    imageElement.attr("data-lazy-src") ||
-    imageElement.attr("data-original") ||
-    imageElement.attr("src");
-  const thumbnail = getAbsoluteUrl(thumbnailSource);
+  const thumbnail = getImageUrl($, imageElement);
 
   const latestChapterElement =
     card.find('a[href*="chapter"]').filter((_, el) => normalizeText($(el).text())).first()
