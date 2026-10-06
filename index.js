@@ -101,12 +101,15 @@ app.get("/image-proxy", async (req, res) => {
     const requestedReferer = req.query.referer
       ? new URL(req.query.referer, "https://komiku.org/")
       : new URL("https://komiku.org/");
+    const isPlusImage = /(^|\\.)komiku\\.plus$/i.test(imageUrl.hostname);
     const referer =
-      requestedReferer.hostname === "komiku.org"
-        ? requestedReferer.toString()
-        : "https://komiku.org/";
+      isPlusImage
+        ? "https://komiku.plus/"
+        : requestedReferer.hostname === "komiku.org"
+          ? requestedReferer.toString()
+          : "https://komiku.org/";
     const isAllowedHost =
-      /(^|\.)komiku\.(org|to|id|me|co)$/i.test(imageUrl.hostname);
+      /(^|\\.)komiku\\.(org|to|id|me|co|plus)$/i.test(imageUrl.hostname);
 
     if (!isAllowedHost) {
       return res.status(400).json({ error: "Domain gambar tidak diizinkan." });
