@@ -21,11 +21,11 @@ const getRekomendasi = async (req, res) => {
     // The "Rekomendasi_Komik" section now renders its ranking panels
     // client-side (empty #rank-harian / #rank-mingguan divs). The actual
     // comic cards live in the "Terbaru" section as <article class="ls2">.
-    let cards = $("#Terbaru article.ls2").toArray();
+    let cards = $("#Terbaru .bge:has(a[href*="/manga/"]), #Terbaru article.ls2").toArray();
 
     // Fallback: any article containing a /manga/ link.
     if (!cards.length) {
-      cards = $('article:has(a[href*="/manga/"])').toArray();
+      cards = $('.bge:has(a[href*="/manga/"]), article:has(a[href*="/manga/"])').toArray();
     }
 
     // Fallback: any anchor pointing to a manga detail page.
