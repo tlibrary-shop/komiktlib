@@ -167,10 +167,16 @@ const getBacaChapter = async (req, res) => {
     const { data, chapterUrl, chapterValue } = await fetchChapterHtml(slug, chapter, sourceUrl);
     const $ = cheerio.load(data);
 
+    const isKomikuPlus = /komiku\.plus/i.test(chapterUrl);
+
     const title =
       normalizeText($("#Judul h1").first().text()) ||
       normalizeText($("h1").first().text()) ||
-      normalizeText($("meta[itemprop='name']").attr("content"));
+      normalizeText($("meta[itemprop='name']").attr("content")) ||
+      (isKomikuPlus
+        ? normalizeText($("meta[property='og:title']").attr("content")) ||
+          normalizeText($("title").first().text())
+        : "");
     const mangaTitleElement = $(
       '#Judul a[href*="/manga/"], #Judul a[href*="/komik/"], a[href*="/manga/"], a[href*="/komik/"]'
     ).first();
@@ -190,50 +196,70 @@ const getBacaChapter = async (req, res) => {
     });
 
     const images = [];
-    const isKomikuPlus = /komiku\.plus/i.test(chapterUrl);
 
-    $("#Baca_Komik img, img.ww, img[id], article img, main img").each((_, el) => {
-      const img = $(el);
-      const src = getImageUrl($, img);
-      const id = normalizeText(img.attr("id"));
-      const alt = normalizeText(img.attr("alt"));
-      const isLikelyPageImage =
-        /\.(?:jpe?g|png|webp|avif)(?:\?|$)/i.test(src || "") ||
-        /(?:uploads?\d*|chapter|comic|manga)/i.test(src || "") ||
-        /^\d+$/.test(id);
+    const pushImage = (rawUrl, alt = "", id = "") => {
+      const src = getAbsoluteUrl(rawUrl, chapterUrl);
+      if (!src || /^data:/i.test(src)) return;
+      const isImageFile = /\.(?:jpe?g|png|webp|avif)(?:[?#]|$)/i.test(src);
+      const isKomikuCdn = /(?:cdn|img|image|images|static)\.komiku\.(?:org|to|plus)\//i.test(src);
+      if (!isImageFile && !isKomikuCdn) return;
+      images.push({
+        src: src.replace("thumbnail.komiku.to", "thumbnail.komiku.org"),
+        alt: normalizeText(alt),
+        id: normalizeText(id),
+        fallbackSrc: src
+          .replace("cdn.komiku.org", "img.komiku.org")
+          .replace("cdn.komiku.plus", "img.komiku.plus"),
+      });
+    };
 
-      const isAllowedKomikuImage =
-        src &&
-        /(?:[\w-]+\.)?komiku\.(?:org|to|plus)\//i.test(src);
-
-      const isPlusPageImage =
-        isKomikuPlus &&
-        src &&
-        isLikelyPageImage &&
-        !/^data:/i.test(src);
-
-      if (
-        src &&
-        (
-          isPlusPageImage ||
-          (
-            isAllowedKomikuImage &&
-            (!isKomikuPlus
-              ? /(?:uploads?\d*|chapter|comic|manga)/i.test(src || "") || /^\d+$/.test(id)
-              : isLikelyPageImage)
-          )
-        )
-      ) {
-        images.push({
-          src,
-          alt,
-          id,
-          fallbackSrc: src
-            .replace("cdn.komiku.org", "img.komiku.org")
-            .replace("cdn.komiku.plus", "img.komiku.plus"),
+    if (isKomikuPlus) {
+      $("img").each((_, el) => {
+        const img = $(el);
+        const candidates = [
+          img.attr("data-src"), img.attr("data-lazy-src"), img.attr("data-original"),
+          img.attr("data-image"), img.attr("data-img"), img.attr("data-url"),
+          img.attr("src"), img.attr("data-srcset"), img.attr("srcset"),
+        ].filter(Boolean);
+        candidates.forEach((value) => {
+          const first = String(value).split(",")[0].trim().split(/\s+/)[0];
+          pushImage(first, img.attr("alt"), img.attr("id"));
         });
-      }
-    });
+      });
+      $("source").each((_, el) => {
+        const source = $(el);
+        const value = source.attr("src") || source.attr("data-src") || source.attr("srcset");
+        if (value) {
+          const first = String(value).split(",")[0].trim().split(/\s+/)[0];
+          pushImage(first);
+        }
+      });
+      $("a[href]").each((_, el) => {
+        const href = $(el).attr("href");
+        if (/\.(?:jpe?g|png|webp|avif)(?:[?#]|$)/i.test(href || "")) pushImage(href);
+      });
+    } else {
+      $("#Baca_Komik img, img.ww, img[id], article img, main img").each((_, el) => {
+        const img = $(el);
+        const src = getImageUrl($, img);
+        const id = normalizeText(img.attr("id"));
+        const alt = normalizeText(img.attr("alt"));
+        const isLikelyPageImage =
+          /\.(?:jpe?g|png|webp|avif)(?:\?|$)/i.test(src || "") ||
+          /(?:uploads?\d*|chapter|comic|manga)/i.test(src || "") ||
+          /^\d+$/.test(id);
+        const isAllowedKomikuImage =
+          src && /(?:[\w-]+\.)?komiku\.(?:org|to|plus)\//i.test(src);
+        if (src && isAllowedKomikuImage && isLikelyPageImage) {
+          images.push({
+            src, alt, id,
+            fallbackSrc: src
+              .replace("cdn.komiku.org", "img.komiku.org")
+              .replace("cdn.komiku.plus", "img.komiku.plus"),
+          });
+        }
+      });
+    }
 
     const uniqueImages = images.filter(
       (image, index, allImages) =>
