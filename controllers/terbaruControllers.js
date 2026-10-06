@@ -86,6 +86,8 @@ function findTerbaruSection($) {
 
 function getCandidateCards($, section) {
   const selectors = [
+    '.bge:has(a[href*="/manga/"])',
+    '.ls2:has(a[href*="/manga/"])',
     "article",
     'li:has(a[href*="/manga/"]):has(a[href*="chapter"])',
     'div:has(> a[href*="/manga/"]):has(a[href*="chapter"])',
