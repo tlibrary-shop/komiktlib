@@ -217,9 +217,40 @@ const getDetail = async (req, res) => {
     }
 
     if (!komikDetail || !komikDetail.title || !komikDetail.chapters.length) {
-      const alternateUrl = `https://komiku.plus/komik/${encodeURIComponent(slug)}`;
+      const searchUrl = `${BASE_URL}/?post_type=manga&s=${encodeURIComponent(slug)}`;
+
       try {
-        komikDetail = await scrapeKomikDetail(alternateUrl);
+        const searchHtml = await fetchHtml(searchUrl);
+        const search$ = cheerio.load(searchHtml);
+        const normalizedSlug = normalizeText(slug).toLowerCase().replace(/[-_]+/g, " ").trim();
+
+        const candidates = search$('a[href*="/manga/"], a[href*="/komik/"]')
+          .toArray()
+          .map((el) => {
+            const href = getAbsoluteUrl(search$(el).attr("href"));
+            const text = normalizeText(
+              search$(el).attr("title") ||
+                search$(el).find("h1,h2,h3,h4,.h4,.title").first().text() ||
+                search$(el).text()
+            ).toLowerCase();
+            const hrefSlug = extractMangaSlug(href).toLowerCase();
+
+            let score = 0;
+            if (hrefSlug === slug.toLowerCase()) score += 100;
+            if (hrefSlug === normalizedSlug.replace(/\s+/g, "-")) score += 80;
+            if (text === normalizedSlug) score += 60;
+            if (text.includes(normalizedSlug)) score += 20;
+
+            return { href, score };
+          })
+          .filter((item) => item.href && item.score > 0)
+          .sort((a, b) => b.score - a.score);
+
+        const resolvedUrl = candidates[0]?.href;
+
+        if (resolvedUrl) {
+          komikDetail = await scrapeKomikDetail(resolvedUrl);
+        }
       } catch (error) {
         if (!error.response || error.response.status !== 404) throw error;
       }
