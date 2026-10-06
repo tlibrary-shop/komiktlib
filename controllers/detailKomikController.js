@@ -234,10 +234,32 @@ const getDetail = async (req, res) => {
     }
 
     let komikDetail;
-    try {
-      komikDetail = await scrapeKomikDetail(komikUrl);
-    } catch (error) {
-      if (!error.response || error.response.status !== 404) throw error;
+    const forcePlusForEleceed = /^eleceed$/i.test(slug);
+
+    // Eleceed diprioritaskan ke Komiku Plus karena sumber Komiku.org
+    // untuk seri ini tidak selalu menyediakan detail/chapter yang bisa dibaca.
+    if (forcePlusForEleceed) {
+      const plusUrl = "https://komiku.plus/komik/" + encodeURIComponent(slug);
+      try {
+        const plusDetail = await scrapeKomikDetail(plusUrl);
+        if (plusDetail.title && plusDetail.chapters.length) {
+          komikDetail = {
+            ...plusDetail,
+            slug,
+            sourceUrl: plusUrl,
+          };
+        }
+      } catch (error) {
+        console.warn("Komiku Plus Eleceed gagal, lanjut fallback Komiku.org:", error.message);
+      }
+    }
+
+    if (!komikDetail) {
+      try {
+        komikDetail = await scrapeKomikDetail(komikUrl);
+      } catch (error) {
+        if (!error.response || error.response.status !== 404) throw error;
+      }
     }
 
     if (!komikDetail || !komikDetail.title || !komikDetail.chapters.length) {
