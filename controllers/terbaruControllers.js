@@ -175,11 +175,22 @@ function parseCard($, cardElement) {
       : card.find("img").first();
 
   const originalLink = getAbsoluteUrl(mangaLinkElement.attr("href"));
+  const rawTitleCandidates = [
+    mangaLinkElement.attr("title"),
+    imageElement.attr("alt"),
+    mangaLinkElement.text(),
+  ].map(cleanTitle).filter(Boolean);
+
   const title =
-    cleanTitle(mangaLinkElement.text()) ||
-    cleanTitle(mangaLinkElement.attr("title")) ||
-    cleanTitle(imageElement.attr("alt")) ||
-    "Judul Tidak Tersedia";
+    rawTitleCandidates
+      .map((value) =>
+        value
+          .replace(/^(?:Manga|Manhwa|Manhua)\s+/i, "")
+          .replace(/\s+Up\s*\d+$/i, "")
+          .replace(/\s+Chapter\s+[\d.]+$/i, "")
+          .trim()
+      )
+      .find(Boolean) || "Judul Tidak Tersedia";
 
   const thumbnail = getImageUrl($, imageElement);
 
