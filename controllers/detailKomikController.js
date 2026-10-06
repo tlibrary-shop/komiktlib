@@ -288,7 +288,37 @@ const getDetail = async (req, res) => {
       }
     }
 
-    // Fallback terakhir: beberapa permalink Komiku.org bisa 404 meskipun\n    // komiknya masih ada di daftar/chapter. Komiku Plus memakai pola URL\n    // yang sama untuk detail: /komik/{slug}.\n    if (!komikDetail || !komikDetail.title || !komikDetail.chapters.length) {\n      const plusUrl = `https://komiku.plus/komik/${encodeURIComponent(slug)}`;\n      try {\n        const plusDetail = await scrapeKomikDetail(plusUrl);\n        if (plusDetail.title && plusDetail.chapters.length) {\n          komikDetail = {\n            ...plusDetail,\n            sourceUrl: plusUrl,\n          };\n          console.log("Fallback detail berhasil dari Komiku Plus:", plusUrl);\n        }\n      } catch (error) {\n        if (!error.response || error.response.status !== 404) {\n          console.warn("Gagal mencoba fallback Komiku Plus:", plusUrl, error.message);\n        }\n      }\n    }\n\n    if (!komikDetail || !komikDetail.title || !komikDetail.chapters.length) {
+    if (!komikDetail || !komikDetail.title || !komikDetail.chapters.length) {
+      const directUrl = `${BASE_URL}/${encodeURIComponent(slug)}/`;
+      try {
+        const directDetail = await scrapeKomikDetail(directUrl);
+        if (directDetail.title && directDetail.chapters.length) {
+          komikDetail = directDetail;
+        }
+      } catch (error) {
+        if (!error.response || error.response.status !== 404) {
+          console.warn("Gagal mencoba URL detail langsung Komiku:", directUrl, error.message);
+        }
+      }
+    }
+
+    // Fallback otomatis ke Komiku Plus jika detail Komiku.org gagal, 404, atau kosong.
+    if (!komikDetail || !komikDetail.title || !komikDetail.chapters.length) {
+      const plusUrl = "https://komiku.plus/komik/" + encodeURIComponent(slug);
+      try {
+        const plusDetail = await scrapeKomikDetail(plusUrl);
+        if (plusDetail.title && plusDetail.chapters.length) {
+          komikDetail = {
+            ...plusDetail,
+            slug,
+            sourceUrl: plusUrl,
+          };
+        }
+      } catch (error) {
+        console.warn("Gagal mencoba fallback Komiku Plus:", plusUrl, error.message);
+      }
+    }
+    if (!komikDetail || !komikDetail.title || !komikDetail.chapters.length) {
       return res.status(502).json({
         error: "Gagal parsing detail komik dari Komiku.",
         detail:
