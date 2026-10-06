@@ -54,7 +54,9 @@ async function scrapeKomikDetail(url) {
 
   const title =
     normalizeText($("h1 [itemprop='name']").first().text()) ||
-    normalizeText($("h1").first().text());
+    normalizeText($("h1").first().text()) ||
+    normalizeText($("[itemprop='name']").first().text()) ||
+    normalizeText($(".entry-title, .post-title, article h1, main h1").first().text());
   const alternativeTitle = normalizeText($("p.j2").first().text());
   const description = normalizeText($("p.desc").first().text());
   const sinopsis =
@@ -105,7 +107,7 @@ async function scrapeKomikDetail(url) {
   const chapters = [];
   const chapterRows = $("section#Chapter table tr, table#Daftar_Chapter tr")
     .toArray()
-    .filter((el) => $(el).find('a[href*="chapter"]').length);
+    .filter((el) => $(el).find('a[href*="chapter"], a[href*="/ch/"]').length);
 
   chapterRows.forEach((el) => {
     const row = $(el);
@@ -122,7 +124,7 @@ async function scrapeKomikDetail(url) {
   });
 
   if (!chapters.length) {
-    $('a[href*="chapter"]').each((_, el) => {
+    $('a[href*="chapter"], a[href*="/ch/"]').each((_, el) => {
       const chapter = parseChapterLink($, $(el));
       if (chapter.originalLink && chapter.title) {
         chapters.push({ ...chapter, views: "", date: "" });
@@ -283,6 +285,20 @@ const getDetail = async (req, res) => {
         }
       } catch (error) {
         if (!error.response || error.response.status !== 404) throw error;
+      }
+    }
+
+    if (!komikDetail || !komikDetail.title || !komikDetail.chapters.length) {
+      const directUrl = `${BASE_URL}/${encodeURIComponent(slug)}/`;
+      try {
+        const directDetail = await scrapeKomikDetail(directUrl);
+        if (directDetail.title && directDetail.chapters.length) {
+          komikDetail = directDetail;
+        }
+      } catch (error) {
+        if (!error.response || error.response.status !== 404) {
+          console.warn("Gagal mencoba URL detail langsung Komiku:", directUrl, error.message);
+        }
       }
     }
 
