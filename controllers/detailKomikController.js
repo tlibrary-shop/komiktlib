@@ -198,7 +198,16 @@ async function scrapeKomikDetail(url) {
 const getDetail = async (req, res) => {
   try {
     const { slug } = req.params;
-    const komikUrl = `${BASE_URL}/manga/${slug}/`;
+    const requestedUrl = typeof req.query.url === "string" ? req.query.url.trim() : "";
+    let komikUrl = `${BASE_URL}/manga/${slug}/`;
+
+    if (requestedUrl) {
+      try {
+        const parsed = new URL(requestedUrl, BASE_URL);
+        if (parsed.hostname === new URL(BASE_URL).hostname) komikUrl = parsed.toString();
+      } catch {}
+    }
+
     const komikDetail = await scrapeKomikDetail(komikUrl);
 
     if (!komikDetail.title || !komikDetail.chapters.length) {
