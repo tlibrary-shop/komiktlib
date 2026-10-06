@@ -50,11 +50,25 @@ function parseKomikCard($, el) {
     "";
   const explicitType = card.attr("data-tipe") || "";
 
+  const rawTitleCandidates = [
+    mangaLinkElement.attr("title"),
+    img.attr("alt"),
+    mangaLinkElement.text(),
+  ].map(cleanTitle).filter(Boolean);
+
+  const title =
+    rawTitleCandidates
+      .map((value) =>
+        value
+          .replace(/^(?:Manga|Manhwa|Manhua)\s+/i, "")
+          .replace(/\s+Up\s*\d+$/i, "")
+          .replace(/\s+Chapter\s+[\d.]+$/i, "")
+          .trim()
+      )
+      .find(Boolean) || "Judul Tidak Tersedia";
+
   return {
-    title:
-      cleanTitle(mangaLinkElement.text()) ||
-      cleanTitle(mangaLinkElement.attr("title")) ||
-      cleanTitle(img.attr("alt")),
+    title,
     originalLink,
     apiDetailLink: mangaSlug ? `/detail-komik/${mangaSlug}` : null,
     thumbnail: getImageUrl($, img),
