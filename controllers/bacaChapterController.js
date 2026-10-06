@@ -206,10 +206,23 @@ const getBacaChapter = async (req, res) => {
         src &&
         /(?:[\w-]+\.)?komiku\.(?:org|to|plus)\//i.test(src);
 
+      const isPlusPageImage =
+        isKomikuPlus &&
+        src &&
+        isLikelyPageImage &&
+        !/^data:/i.test(src);
+
       if (
         src &&
-        isAllowedKomikuImage &&
-        (isKomikuPlus ? isLikelyPageImage : /(?:uploads?\d*|chapter|comic|manga)/i.test(src || "") || /^\d+$/.test(id))
+        (
+          isPlusPageImage ||
+          (
+            isAllowedKomikuImage &&
+            (!isKomikuPlus
+              ? /(?:uploads?\d*|chapter|comic|manga)/i.test(src || "") || /^\d+$/.test(id)
+              : isLikelyPageImage)
+          )
+        )
       ) {
         images.push({
           src,
