@@ -109,9 +109,12 @@ function scrapeKomikSection($, sectionSelector, fallbackTitle, typeFilter = "") 
   return { title: fallbackTitle, items };
 }
 
-async function loadHomepage() {
-  const data = await fetchHtml(BASE_URL);
-  return { data, $: cheerio.load(data) };
+async function loadPopularPage(page = 1, typeFilter = "") {
+  const validPage = Math.max(1, parseInt(page, 10) || 1);
+  const typeQuery = typeFilter ? `&tipe=${encodeURIComponent(typeFilter.toLowerCase())}` : "";
+  const pageUrl = `${BASE_URL}/pustaka/page/${validPage}/?orderby=meta_value_num&sorttime=all${typeQuery}`;
+  const data = await fetchHtml(pageUrl);
+  return { data, $: cheerio.load(data), page: validPage };
 }
 
 function ensureItems(context, data, result) {
@@ -125,17 +128,21 @@ function ensureItems(context, data, result) {
 
 const komikPopuler = async (req, res) => {
   try {
-    const { data, $ } = await loadHomepage();
-    const mangaPopuler = scrapeKomikSection($, "#Komik_Populer", "Manga Populer", "Manga");
-    const manhwaPopuler = scrapeKomikSection($, "#Komik_Populer", "Manhwa Populer", "Manhwa");
-    const manhuaPopuler = scrapeKomikSection($, "#Komik_Populer", "Manhua Populer", "Manhua");
-
-    ensureItems("GET /komik-populer manga", data, mangaPopuler);
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const [mangaCtx, manhwaCtx, manhuaCtx] = await Promise.all([
+      loadPopularPage(page, "Manga"),
+      loadPopularPage(page, "Manhwa"),
+      loadPopularPage(page, "Manhua"),
+    ]);
+    const mangaPopuler = scrapeKomikSection(mangaCtx.$, "body", "Manga Populer", "Manga");
+    const manhwaPopuler = scrapeKomikSection(manhwaCtx.$, "body", "Manhwa Populer", "Manhwa");
+    const manhuaPopuler = scrapeKomikSection(manhuaCtx.$, "body", "Manhua Populer", "Manhua");
 
     res.json({
-      manga: mangaPopuler,
-      manhwa: manhwaPopuler,
-      manhua: manhuaPopuler,
+      page,
+      manga: { ...mangaPopuler, hasNextPage: mangaPopuler.items.length >= 10 },
+      manhwa: { ...manhwaPopuler, hasNextPage: manhwaPopuler.items.length >= 10 },
+      manhua: { ...manhuaPopuler, hasNextPage: manhuaPopuler.items.length >= 10 },
     });
   } catch (err) {
     console.error("Error scraping semua komik populer:", err);
@@ -148,10 +155,11 @@ const komikPopuler = async (req, res) => {
 
 const rekomendasiManga = async (req, res) => {
   try {
-    const { data, $ } = await loadHomepage();
-    const mangaPopuler = scrapeKomikSection($, "#Komik_Populer", "Manga Populer", "Manga");
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const { data, $ } = await loadPopularPage(page, "Manga");
+    const mangaPopuler = scrapeKomikSection($, "body", "Manga Populer", "Manga");
     ensureItems("GET /komik-populer/manga", data, mangaPopuler);
-    res.json(mangaPopuler);
+    res.json({ ...mangaPopuler, page, hasNextPage: mangaPopuler.items.length >= 10 });
   } catch (err) {
     console.error("Error scraping manga populer:", err);
     res.status(500).json({
@@ -163,10 +171,11 @@ const rekomendasiManga = async (req, res) => {
 
 const rekomendasiManhwa = async (req, res) => {
   try {
-    const { data, $ } = await loadHomepage();
-    const manhwaPopuler = scrapeKomikSection($, "#Komik_Populer", "Manhwa Populer", "Manhwa");
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const { data, $ } = await loadPopularPage(page, "Manhwa");
+    const manhwaPopuler = scrapeKomikSection($, "body", "Manhwa Populer", "Manhwa");
     ensureItems("GET /komik-populer/manhwa", data, manhwaPopuler);
-    res.json(manhwaPopuler);
+    res.json({ ...manhwaPopuler, page, hasNextPage: manhwaPopuler.items.length >= 10 });
   } catch (err) {
     console.error("Error scraping manhwa populer:", err);
     res.status(500).json({
@@ -178,10 +187,11 @@ const rekomendasiManhwa = async (req, res) => {
 
 const rekomendasiManhua = async (req, res) => {
   try {
-    const { data, $ } = await loadHomepage();
-    const manhuaPopuler = scrapeKomikSection($, "#Komik_Populer", "Manhua Populer", "Manhua");
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const { data, $ } = await loadPopularPage(page, "Manhua");
+    const manhuaPopuler = scrapeKomikSection($, "body", "Manhua Populer", "Manhua");
     ensureItems("GET /komik-populer/manhua", data, manhuaPopuler);
-    res.json(manhuaPopuler);
+    res.json({ ...manhuaPopuler, page, hasNextPage: manhuaPopuler.items.length >= 10 });
   } catch (err) {
     console.error("Error scraping manhua populer:", err);
     res.status(500).json({
