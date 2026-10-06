@@ -134,7 +134,19 @@ async function fetchChapterHtml(slug, chapter, sourceUrl = "") {
   }
 
   // Fallback untuk kompatibilitas dengan URL chapter lama/pola standar.
-  const candidates = getChapterUrlCandidates(slug, chapter);
+  const sourceBase = (() => {
+    try {
+      return sourceUrl ? new URL(sourceUrl).origin : BASE_URL;
+    } catch {
+      return BASE_URL;
+    }
+  })();
+
+  const candidates = getChapterUrlCandidates(slug, chapter).map((candidate) => ({
+    ...candidate,
+    url: candidate.url.replace(BASE_URL, sourceBase),
+  }));
+
   for (const candidate of candidates) {
     try {
       const data = await fetchHtml(candidate.url);
