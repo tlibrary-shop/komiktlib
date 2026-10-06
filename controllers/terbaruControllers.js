@@ -181,7 +181,16 @@ function parseCard($, cardElement) {
     mangaLinkElement.text(),
   ].map(cleanTitle).filter(Boolean);
 
+  const slugTitle = extractMangaSlug(originalLink)
+    ? extractMangaSlug(originalLink)
+        .split("-")
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ")
+    : "";
+
   const title =
+    slugTitle ||
     rawTitleCandidates
       .map((value) =>
         value
